@@ -61,7 +61,8 @@ class ViewController: UIViewController {
                 println("Could not complete the request \(error)")
             } else {
                 var parsingError: NSError? = nil
-                println(data);
+                let parsedResult = NSJSONSerialization.JSONObjectWithData(data, options: NSJSONReadingOptions.AllowFragments, error: &parsingError) as? NSDictionary
+                println(parsedResult)
             }
         }
         task.resume()
