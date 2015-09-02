@@ -102,6 +102,9 @@
                                 <variation key="widthClass=compact" fixedFrame="YES">
                                     <rect key="frame" x="346" y="350" width="48" height="30"/>
                                 </variation>
+                                <connections>
+                                    <action selector="searchPhotosByLatLonButtonTouchUp:" destination="vXZ-lx-hvc" eventType="touchUpInside" id="X9C-bN-7Q1"/>
+                                </connections>
                             </button>
                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="oeZ-Nd-lsg">
                                 <rect key="frame" x="0.0" y="-21" width="42" height="21"/>
