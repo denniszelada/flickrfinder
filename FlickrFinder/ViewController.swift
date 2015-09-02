@@ -103,53 +103,101 @@ class ViewController: UIViewController {
                 let parsedResult = NSJSONSerialization.JSONObjectWithData(data, options: NSJSONReadingOptions.AllowFragments, error: &parsingError) as? NSDictionary
                 
                 if let photosDictionary = parsedResult?.valueForKey("photos") as? [String: AnyObject] {
-                    var totalPhotosVal = 0
-                    if let totalPhotos = photosDictionary["total"] as? String {
-                        totalPhotosVal = (totalPhotos as NSString).integerValue
-                    }
                     
-                    if totalPhotosVal > 0 {
-                        if let photosArray = photosDictionary["photo"] as? [[String: AnyObject]] {
-                            let randomPhotoIndex = Int(arc4random_uniform(UInt32(photosArray.count)))
-                            let photoDictionary = photosArray[randomPhotoIndex] as [String: AnyObject]
-                            
-                            /* prepare the uiview for updates*/
-                            var photoTitle = photoDictionary["title"] as? String
-                            let imageUrlString = photoDictionary["url_m"] as? String
-                            let imageURL = NSURL(string: imageUrlString!)
-
-
-                            /* update the UI on the main thread */
-                            if let imageData = NSData(contentsOfURL: imageURL!){
-                                dispatch_async(dispatch_get_main_queue(), {
-                                    self.defaultLabel.alpha = 0.0
-                                    self.photoImageView.image = UIImage(data: imageData)
-                                    self.photoTitleLabel.text = "\(photoTitle!)"
-                                })
-                            } else {
-                                println("Image does not exist at \(imageURL)")
-                            }
+                    if let totalPages = photosDictionary["pages"] as? Int {
+                        
+                        /* Flickr API - will only return up the 4000 images (100 per page * 40 page max) */
+                        let pageLimit = min(totalPages, 40)
+                        let randomPage = Int(arc4random_uniform(UInt32(pageLimit))) + 1
+                        self.getImageFromFlickrBySearchWithPage(methodArguments, pageNumber: randomPage)
+                        
                         } else {
-                            println("Can't find key 'photo' in \(photosDictionary)")
+                            println("Cant find key 'pages' in \(photosDictionary)")
                         }
                     } else {
-                        dispatch_async(dispatch_get_main_queue(), {
-                            self.photoTitleLabel.text = "No Photos Found. Search Again"
-                            self.defaultLabel.alpha = 1.0
-                            self.photoImageView.image = nil
-                        })
+                        println("Cant find key 'photos' in \(parsedResult)")
                     }
-                    
-                } else {
-                    println("Can't find key photos in \(parsedResult)")
-                }
-                
             }
         }
         task.resume()
 
     }
     
+    func getImageFromFlickrBySearchWithPage(methodArguments: [String : AnyObject], pageNumber: Int) {
+    
+        /* Add the page to the method's arguments */
+        var withPageDictionary = methodArguments
+        withPageDictionary["page"] = pageNumber
+        
+        let session = NSURLSession.sharedSession()
+        let urlString = BASE_URL + escapedParameters(withPageDictionary)
+        let url = NSURL(string: urlString)!
+        let request = NSURLRequest(URL: url)
+        
+        let task = session.dataTaskWithRequest(request) {data, response, downloadError in
+        if let error = downloadError {
+            println("Could not complete the request \(error)")
+            } else {
+            var parsingError: NSError? = nil
+            let parsedResult = NSJSONSerialization.JSONObjectWithData(data, options: NSJSONReadingOptions.AllowFragments, error: &parsingError) as! NSDictionary
+        
+        if let photosDictionary = parsedResult.valueForKey("photos") as? [String:AnyObject] {
+        
+            var totalPhotosVal = 0
+            if let totalPhotos = photosDictionary["total"] as? String {
+        totalPhotosVal = (totalPhotos as NSString).integerValue
+        }
+        
+        if totalPhotosVal > 0 {
+            if let photosArray = photosDictionary["photo"] as? [[String: AnyObject]] {
+        
+                let randomPhotoIndex = Int(arc4random_uniform(UInt32(photosArray.count)))
+                let photoDictionary = photosArray[randomPhotoIndex] as [String: AnyObject]
+        
+                let photoTitle = photoDictionary["title"] as? String
+                let imageUrlString = photoDictionary["url_m"] as? String
+                let imageURL = NSURL(string: imageUrlString!)
+        
+        if let imageData = NSData(contentsOfURL: imageURL!) {
+            dispatch_async(dispatch_get_main_queue(), {
+                self.defaultLabel.alpha = 0.0
+                self.photoImageView.image = UIImage(data: imageData)
+        
+                if methodArguments["bbox"] != nil {
+                    self.photoTitleLabel.text = "\(self.getLatLonString()) \(photoTitle!)"
+                } else {
+                    self.photoTitleLabel.text = "\(photoTitle!)"
+                }
+        
+        })
+            } else {
+                println("Image does not exist at \(imageURL)")
+                }
+            } else {
+                println("Cant find key 'photo' in \(photosDictionary)")
+            }
+            } else {
+                dispatch_async(dispatch_get_main_queue(), {
+                    self.photoTitleLabel.text = "No Photos Found. Search Again."
+                    self.defaultLabel.alpha = 1.0
+                    self.photoImageView.image = nil
+                })
+            }
+            } else {
+                println("Cant find key 'photos' in \(parsedResult)")
+            }
+        }
+        }
+        
+        task.resume()
+    }
+    
+    func getLatLonString() -> String {
+        let latitude = (self.latitudTextField.text as NSString).doubleValue
+        let longitude = (self.longitudTextField.text as NSString).doubleValue
+        
+        return "(\(latitude), \(longitude))"
+    }
     /* Helper function: Given a dictionary of parameters, convert to a string for a url */
     func escapedParameters(parameters: [String : AnyObject]) -> String {
         
